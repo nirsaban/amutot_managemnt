@@ -7,6 +7,7 @@ import { FamiliesModule } from "./families/families.module";
 import { GroupsModule } from "./groups/groups.module";
 import { MembershipsModule } from "./memberships/memberships.module";
 import { NotificationsModule } from "./notifications/notifications.module";
+import { OnboardingModule } from "./onboarding/onboarding.module";
 import { PaymentsModule } from "./payments/payments.module";
 import { PaymentStatusModule } from "./payment-status/payment-status.module";
 import { PrismaModule } from "./prisma/prisma.module";
@@ -15,11 +16,13 @@ import { UsersModule } from "./users/users.module";
 import { WebhooksModule } from "./webhooks/webhooks.module";
 import { WeeklyDistributorsModule } from "./weekly-distributors/weekly-distributors.module";
 import { WeeklyOrdersModule } from "./weekly-orders/weekly-orders.module";
+import { AuthorizationModule } from "./authz/authorization.module";
 
 @Module({
   imports: [
     AppConfigModule,
     PrismaModule,
+    AuthorizationModule,
     AuthModule,
     UsersModule,
     GroupsModule,
@@ -32,7 +35,8 @@ import { WeeklyOrdersModule } from "./weekly-orders/weekly-orders.module";
     RemindersModule,
     NotificationsModule,
     WebhooksModule,
-    AdminModule
+    AdminModule,
+    OnboardingModule
   ],
   controllers: [HealthController]
 })

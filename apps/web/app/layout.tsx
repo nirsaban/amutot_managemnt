@@ -12,11 +12,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="he" dir="rtl">
       <body className="min-h-screen bg-slate-950 text-slate-50">
         <div className="mx-auto max-w-4xl px-6 py-10">{children}</div>
       </body>
     </html>
   );
 }
-
