@@ -7,8 +7,358 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model Example {
-  id        String   @id @default(cuid())
-  createdAt DateTime @default(now())
+enum UserSystemRole {
+  USER
+  ADMIN
 }
 
+enum GroupRole {
+  MEMBER
+}
+
+enum WeeklyOrderStatus {
+  DRAFT
+  SUBMITTED
+  CANCELLED
+  FULFILLED
+}
+
+enum AssignmentStatus {
+  ASSIGNED
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  CANCELLED
+  REFUNDED
+}
+
+enum PaymentProvider {
+  MANUAL
+  WEBHOOK
+}
+
+enum MonthlyStatus {
+  UNPAID
+  PAID
+  WAIVED
+}
+
+enum ReminderChannel {
+  SMS
+  WHATSAPP
+  EMAIL
+  PUSH
+}
+
+enum NotificationStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
+enum NotificationType {
+  PAYMENT_REMINDER
+  ORDER_REMINDER
+  GENERAL
+}
+
+model Association {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deletedAt DateTime?
+
+  users   User[]
+  groups  DistributionGroup[]
+  families Family[]
+  orders  WeeklyOrder[]
+  assignments WeeklyDistributorAssignment[]
+  payments Payment[]
+  monthlyStatuses MonthlyPaymentStatus[]
+  reminders PaymentReminder[]
+  notifications Notification[]
+  pushSubscriptions PushSubscription[]
+
+  @@index([deletedAt])
+}
+
+model User {
+  id            String         @id @default(uuid()) @db.Uuid
+  associationId String         @db.Uuid
+  phone         String
+  firstName     String?
+  lastName      String?
+  email         String?
+  systemRole    UserSystemRole @default(USER)
+  isActive      Boolean        @default(true)
+  importedAt    DateTime?
+  registrationCompleted Boolean @default(false)
+  groupSelectionCompleted Boolean @default(false)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  deletedAt     DateTime?
+
+  association Association @relation(fields: [associationId], references: [id], onDelete: Restrict)
+
+  familyId String? @db.Uuid
+  family   Family? @relation(fields: [familyId], references: [id], onDelete: SetNull)
+
+  memberships GroupMembership[]
+  managedGroups DistributionGroup[] @relation("GroupManager")
+  distributorAssignments WeeklyDistributorAssignment[] @relation("DistributorUser")
+
+  payments Payment[]
+  monthlyStatuses MonthlyPaymentStatus[]
+  reminders PaymentReminder[]
+  notifications Notification[]
+  pushSubscriptions PushSubscription[]
+
+  @@unique([phone])
+  @@index([associationId])
+  @@index([familyId])
+  @@index([deletedAt])
+  @@index([registrationCompleted])
+  @@index([groupSelectionCompleted])
+}
+
+model DistributionGroup {
+  id            String   @id @default(uuid()) @db.Uuid
+  associationId String   @db.Uuid
+  name          String
+  description   String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  deletedAt     DateTime?
+
+  association Association @relation(fields: [associationId], references: [id], onDelete: Restrict)
+
+  managerUserId String @db.Uuid
+  manager       User   @relation("GroupManager", fields: [managerUserId], references: [id], onDelete: Restrict)
+
+  memberships GroupMembership[]
+  families    Family[]
+  assignments WeeklyDistributorAssignment[]
+
+  @@index([associationId])
+  @@index([managerUserId])
+  @@index([deletedAt])
+}
+
+model GroupMembership {
+  id        String    @id @default(uuid()) @db.Uuid
+  groupId   String    @db.Uuid
+  userId    String    @db.Uuid
+  role      GroupRole @default(MEMBER)
+  startedAt DateTime  @default(now())
+  endedAt   DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  group DistributionGroup @relation(fields: [groupId], references: [id], onDelete: Restrict)
+  user  User              @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@unique([groupId, userId])
+  @@index([groupId])
+  @@index([userId])
+  @@index([role])
+  @@index([deletedAt])
+}
+
+model Family {
+  id            String   @id @default(uuid()) @db.Uuid
+  associationId String   @db.Uuid
+  name          String
+  addressLine1  String?
+  addressLine2  String?
+  city          String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  deletedAt     DateTime?
+
+  association Association @relation(fields: [associationId], references: [id], onDelete: Restrict)
+
+  distributionGroupId String?            @db.Uuid
+  distributionGroup   DistributionGroup? @relation(fields: [distributionGroupId], references: [id], onDelete: SetNull)
+
+  users  User[]
+  orders WeeklyOrder[]
+
+  @@index([associationId])
+  @@index([distributionGroupId])
+  @@index([deletedAt])
+}
+
+model WeeklyOrder {
+  id            String            @id @default(uuid()) @db.Uuid
+  associationId String            @db.Uuid
+  familyId      String            @db.Uuid
+  weekKey       String
+  status        WeeklyOrderStatus @default(DRAFT)
+  notes         String?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  deletedAt     DateTime?
+
+  association Association @relation(fields: [associationId], references: [id], onDelete: Restrict)
+  family      Family      @relation(fields: [familyId], references: [id], onDelete: Restrict)
+
+  @@unique([familyId, weekKey])
+  @@index([associationId])
+  @@index([familyId])
+  @@index([weekKey])
+  @@index([status])
+  @@index([deletedAt])
+}
+
+model WeeklyDistributorAssignment {
+  id            String           @id @default(uuid()) @db.Uuid
+  associationId String           @db.Uuid
+  groupId       String           @db.Uuid
+  weekKey       String
+  distributorUserId String       @db.Uuid
+  status        AssignmentStatus @default(ASSIGNED)
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  deletedAt     DateTime?
+
+  association Association      @relation(fields: [associationId], references: [id], onDelete: Restrict)
+  group       DistributionGroup @relation(fields: [groupId], references: [id], onDelete: Restrict)
+  distributor User             @relation("DistributorUser", fields: [distributorUserId], references: [id], onDelete: Restrict)
+
+  @@unique([groupId, weekKey])
+  @@index([associationId])
+  @@index([groupId])
+  @@index([weekKey])
+  @@index([distributorUserId])
+  @@index([status])
+  @@index([deletedAt])
+}
+
+model Payment {
+  id            String          @id @default(uuid()) @db.Uuid
+  associationId String          @db.Uuid
+  userId        String          @db.Uuid
+  provider      PaymentProvider @default(MANUAL)
+  status        PaymentStatus   @default(PENDING)
+  amountCents   Int
+  currency      String          @default("ILS")
+  monthKey      String?
+  externalTransactionId String?
+  paidAt        DateTime?
+  rawWebhook    Json?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  deletedAt     DateTime?
+
+  association Association @relation(fields: [associationId], references: [id], onDelete: Restrict)
+  user        User        @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  monthlyStatus MonthlyPaymentStatus?
+
+  @@unique([externalTransactionId])
+  @@index([associationId])
+  @@index([userId])
+  @@index([monthKey])
+  @@index([status])
+  @@index([deletedAt])
+}
+
+model MonthlyPaymentStatus {
+  id            String        @id @default(uuid()) @db.Uuid
+  associationId String        @db.Uuid
+  userId        String        @db.Uuid
+  monthKey      String
+  status        MonthlyStatus @default(UNPAID)
+  paidAt        DateTime?
+  paymentId     String?       @unique @db.Uuid
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  association Association @relation(fields: [associationId], references: [id], onDelete: Restrict)
+  user        User        @relation(fields: [userId], references: [id], onDelete: Restrict)
+  payment     Payment?    @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+
+  @@unique([userId, monthKey])
+  @@index([associationId])
+  @@index([userId])
+  @@index([monthKey])
+  @@index([status])
+}
+
+model PaymentReminder {
+  id            String          @id @default(uuid()) @db.Uuid
+  associationId String          @db.Uuid
+  userId        String          @db.Uuid
+  monthKey      String
+  sequence      Int
+  channel       ReminderChannel
+  sentAt        DateTime?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  deletedAt     DateTime?
+
+  association Association @relation(fields: [associationId], references: [id], onDelete: Restrict)
+  user        User        @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@unique([userId, monthKey, sequence])
+  @@index([associationId])
+  @@index([userId])
+  @@index([monthKey])
+  @@index([channel])
+  @@index([deletedAt])
+}
+
+model Notification {
+  id            String             @id @default(uuid()) @db.Uuid
+  associationId String             @db.Uuid
+  userId        String?            @db.Uuid
+  type          NotificationType
+  status        NotificationStatus @default(PENDING)
+  title         String?
+  body          String?
+  data          Json?
+  sentAt        DateTime?
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+  deletedAt     DateTime?
+
+  association Association @relation(fields: [associationId], references: [id], onDelete: Restrict)
+  user        User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([associationId])
+  @@index([userId])
+  @@index([status])
+  @@index([type])
+  @@index([deletedAt])
+}
+
+model PushSubscription {
+  id            String   @id @default(uuid()) @db.Uuid
+  associationId String   @db.Uuid
+  userId        String   @db.Uuid
+  endpoint      String
+  p256dh        String
+  auth         String
+  userAgent     String?
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  deletedAt     DateTime?
+
+  association Association @relation(fields: [associationId], references: [id], onDelete: Restrict)
+  user        User        @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@unique([endpoint])
+  @@index([associationId])
+  @@index([userId])
+  @@index([isActive])
+  @@index([deletedAt])
+}

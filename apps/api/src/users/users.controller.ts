@@ -1,0 +1,14 @@
+import { Controller, Get } from "@nestjs/common";
+import { UsersService } from "./users.service";
+import { ok } from "../common/http/api-response";
+
+@Controller("users")
+export class UsersController {
+  constructor(private readonly usersService: UsersService) {}
+
+  @Get()
+  async list() {
+    return ok(await this.usersService.list());
+  }
+}
+

@@ -28,6 +28,7 @@ cp apps/web/.env.example apps/web/.env.local
 ```bash
 docker compose up -d db
 ```
+Database is exposed on `localhost:5433` by default.
 
 ## Prisma (optional for now)
 ```bash
